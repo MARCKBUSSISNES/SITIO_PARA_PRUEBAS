@@ -1,0 +1,8 @@
+{
+  "name":"PLANTA PRO - PICONAS",
+  "short_name":"PICONAS",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#071021",
+  "theme_color":"#06b6d4"
+}
