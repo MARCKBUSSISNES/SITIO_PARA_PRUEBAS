@@ -1,21 +1,188 @@
-```html
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Planta Producción - Panel</title>
-<!-- Tailwind CDN para estilos rápidos -->
-<script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planta de Producción - PICONAS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #20232a;
+      color: #61dafb;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 1rem;
+      padding: 1rem;
+    }
+    section {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, textarea, button, select {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #61dafb;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #4ab3d6;
+    }
+    .receta {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      padding: 0.5rem;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+    }
+    .receta h3 {
+      margin: 0.3rem 0;
+      color: #20232a;
+    }
+    video {
+      width: 100%;
+      border-radius: 8px;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
-<div id="root" class="p-6"></div>
+<body>
 
+  <header>
+    <h1>🍳 Planta de Producción - PICONAS</h1>
+  </header>
 
-<!-- React + ReactDOM desde CDN para app ligera (no build) -->
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="main.js"></script>
+  <main>
+    <!-- Panel de creación -->
+    <section>
+      <h2>Crear / Editar Receta</h2>
+      <form id="recetaForm">
+        <label>🔒 Código de acceso:</label>
+        <input type="password" id="codigo" placeholder="Ingresa el código (22782522)" required>
+        <label>📘 Nombre de la receta:</label>
+        <input type="text" id="nombre" required>
+        <label>🥣 Ingredientes:</label>
+        <textarea id="ingredientes" rows="3"></textarea>
+        <label>⚙️ Proceso:</label>
+        <textarea id="proceso" rows="3"></textarea>
+        <label>🎥 Video (simulado):</label>
+        <input type="file" id="video" accept="video/*">
+        <button type="submit">Guardar Receta</button>
+      </form>
+    </section>
+
+    <!-- Lista de recetas -->
+    <section>
+      <h2>📋 Recetas guardadas</h2>
+      <div id="listaRecetas"></div>
+    </section>
+  </main>
+
+  <script>
+    const listaRecetas = document.getElementById("listaRecetas");
+    const form = document.getElementById("recetaForm");
+
+    // Cargar recetas desde LocalStorage
+    let recetas = JSON.parse(localStorage.getItem("recetas")) || [];
+
+    function mostrarRecetas() {
+      listaRecetas.innerHTML = "";
+      if (recetas.length === 0) {
+        listaRecetas.innerHTML = "<p>No hay recetas guardadas aún.</p>";
+        return;
+      }
+      recetas.forEach((r, i) => {
+        const div = document.createElement("div");
+        div.className = "receta";
+        div.innerHTML = `
+          <h3>${r.nombre}</h3>
+          <p><b>Ingredientes:</b> ${r.ingredientes}</p>
+          <p><b>Proceso:</b> ${r.proceso}</p>
+          ${r.video ? `<video src="${r.video}" controls></video>` : ""}
+          <button onclick="editarReceta(${i})">✏️ Editar</button>
+          <button onclick="eliminarReceta(${i})">🗑️ Eliminar</button>
+        `;
+        listaRecetas.appendChild(div);
+      });
+    }
+
+    function guardarRecetas() {
+      localStorage.setItem("recetas", JSON.stringify(recetas));
+      mostrarRecetas();
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const codigo = document.getElementById("codigo").value;
+      if (codigo !== "22782522") {
+        alert("Código incorrecto ❌");
+        return;
+      }
+
+      const nombre = document.getElementById("nombre").value;
+      const ingredientes = document.getElementById("ingredientes").value;
+      const proceso = document.getElementById("proceso").value;
+      const videoFile = document.getElementById("video").files[0];
+
+      const receta = { nombre, ingredientes, proceso };
+
+      if (videoFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          receta.video = e.target.result;
+          recetas.push(receta);
+          guardarRecetas();
+          form.reset();
+        };
+        reader.readAsDataURL(videoFile);
+      } else {
+        receta.video = null;
+        recetas.push(receta);
+        guardarRecetas();
+        form.reset();
+      }
+    });
+
+    function eliminarReceta(index) {
+      if (confirm("¿Eliminar esta receta?")) {
+        recetas.splice(index, 1);
+        guardarRecetas();
+      }
+    }
+
+    function editarReceta(index) {
+      const r = recetas[index];
+      const codigo = prompt("Introduce el código de edición:");
+      if (codigo !== "22782522") {
+        alert("Código incorrecto ❌");
+        return;
+      }
+      document.getElementById("nombre").value = r.nombre;
+      document.getElementById("ingredientes").value = r.ingredientes;
+      document.getElementById("proceso").value = r.proceso;
+      recetas.splice(index, 1);
+      guardarRecetas();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    mostrarRecetas();
+  </script>
+
 </body>
 </html>
-```
