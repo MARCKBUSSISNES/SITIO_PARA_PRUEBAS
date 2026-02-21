@@ -1,3 +1,4 @@
+var indic = "";
 <!doctype html>
 <html lang="es">
 <head>
@@ -2580,11 +2581,14 @@ async function checkout(){
       // Lanzar descarga sin await para no perder gesto del usuario
       if(state.settings.autoPNG){
         try{
-          // 🚀 descarga inmediata dentro del click del usuario
+          // 🔥 asegurar que el ticket esté actualizado antes de capturar PNG
           if(typeof updateReceiptPreview === "function"){
             try{ updateReceiptPreview(); }catch(e){}
           }
-          try{ downloadReceiptPNG(); }catch(e){}
+          // pequeño delay para que el DOM pinte (evita PNG vacío / bloqueado)
+          setTimeout(()=>{
+            try{ downloadReceiptPNG(); }catch(e){}
+          }, 80);
         }catch(e){}
       }else if(state.settings.autoPDF){
         try{ generatePDF(); }catch(e){}
@@ -3502,72 +3506,53 @@ function fitEnvLabelToBox(node){
 // PNG (preferir html2canvas; fallback SVG)
 // PNG (preferir html2canvas; fallback SVG)
 async function downloadReceiptPNG(){
+  // Evitar doble descarga (el navegador bloquea descargas múltiples)
+  const now = Date.now();
+  if(state && state._dlInProgress) return;
+  if(state && state._dlLock && (now - state._dlLock) < 8000) return;
+  if(state){ state._dlLock = now; state._dlInProgress = true; }
 
+  try{
   const s = state.lastReceipt || makeLiveReceipt();
   const isEnv = (s.saleType === "ENVIO");
 
-  // ========================
-  // ENVÍO 10x10
-  // ========================
+  // ====== ENVÍO: PNG 10x10 usando label temporal ======
   if(isEnv){
-
     if(!window.html2canvas){
-      alert("html2canvas no disponible.");
+      alert("html2canvas no está disponible. Usa PDF.");
       return;
     }
 
     const node = buildEnvLabelNode(s);
     document.body.appendChild(node);
     fitEnvLabelToBox(node);
+    // ensureLogoOrAsk removed to prevent browser blocking
 
-    html2canvas(node, {
-      scale: Number(state.settings.envPngScale || 2),
-      backgroundColor: "#ffffff",
-      useCORS: true
-    }).then(canvas => {
-
-      const link = document.createElement("a");
-      link.download = `envio_${(s.receiptNo||"----")}_10x10.png`;
-      link.href = canvas.toDataURL("image/png");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
+    try{
+      const scale = Number(state.settings.envPngScale || 2);
+      await capturePNG(node, `envio_${(s.receiptNo||"----")}_10x10.png`, scale);
+    }catch(e){
+      alert("No se pudo generar PNG de ENVÍO. Intenta con PDF. " + (e?.message||""));
+    }finally{
       node.remove();
-
-    }).catch(err=>{
-      console.error(err);
-      alert("No se pudo generar el PNG.");
-      node.remove();
-    });
-
+    }
     return;
   }
 
-  // ========================
-  // MOSTRADOR
-  // ========================
+  // ====== MOSTRADOR: PNG desde #receiptBox ======
   const node = $("receiptBox");
   if(!node) return;
 
-  html2canvas(node, {
-    scale: 2,
-    backgroundColor: "#ffffff",
-    useCORS: true
-  }).then(canvas => {
+  // 1) html2canvas robusto
+  if(window.html2canvas){
+    try{
+      await capturePNG(node, `recibo_${(s.receiptNo||"----")}.png`, 2);
+      return;
+    }catch(e){
+      // seguimos al fallback
+    }
+  }
 
-    const link = document.createElement("a");
-    link.download = `recibo_${(s.receiptNo||"----")}.png`;
-    link.href = canvas.toDataURL("image/png");
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-  }).catch(err=>{
-    console.error(err);
-    alert("No se pudo generar el PNG.");
-  });
-}
   // 2) fallback SVG foreignObject
   const w = node.offsetWidth;
   const h = node.offsetHeight;
